@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# ./simulation.py <no of tg> <read or not trlist>
+# ./simulation.py <no of tg> <read or not tr_list> <provide tr_list here in file>
 
 import simpy
 import pickle
@@ -62,30 +62,6 @@ class Cable(object):
         return self.store.get()
 
 
-import pprint
-def newTrlist( sby10 ):
-	# tr = time, rate list
-	# sby10 is the duraion of the load profile in second / 10
-    min_duration = 2
-    min_rate = 1
-    global tr_list
-    tr_list = []
-    for i in range( no_of_tg ):
-        tempSecs = 0
-        templist = []
-        while tempSecs < sby10:
-            currentdur =  random.randint( min_duration, int(sim_duration) )	#*0.2/10
-            tempSecs += currentdur
-            rate = random.randint( min_rate, int(capacity*capacity_multiplier) )
-            templist.append( (currentdur, rate ) )	#*10
-        tr_list.append( templist )
-    # add bursts now
-    c1 = random.randint( 0 , len( tr_list )-1 )
-    c2 = random.randint( 0 , len( tr_list[c1] )-1 )
-    # now make a spike
-    tr_list[c1][c2] = ( tr_list[c1][c2][0] ,tr_list[c1][c2][1]+ int( capacity*2 ) )
-
-
 def client(env, idx, cable1, cable2, cable3, cable4):
 	# print( cable1.store.items )
 	# process which randomly generates messages
@@ -130,7 +106,7 @@ def TokenGen(env, idx, cable1, cable2):
         wait_time=0
         # find the share of capcity 
         # use share of capcity to find the waittime
-        soc = getShareRatio( idx , env.now )*capacity
+        soc = getCapacityShare( idx , env.now )
         soc_tg_del[idx] = soc;
         print ( ('soc: '+txt_tg+'%d %.3f %.2f \n') % (idx, env.now, soc ) )
         fired_fp.write( ('soc  %.3f %.2f \n') % ( env.now, soc ) )
@@ -142,11 +118,11 @@ def TokenGen(env, idx, cable1, cable2):
                 if j != idx:
                     puc += wait_list[j][ rotId ] 
             tuc = soc - usedCap
-            print ( ('rotId: %d tuc: %d puc: %d \n') % (rotId, tuc, puc) )
+            # print ( ('rotId: %d tuc: %d puc: %d \n') % (rotId, tuc, puc) )
             if puc > 0 :
                 excess_used = capacity - soc - puc
                 tuc += excess_used if excess_used < 0 else 0
-                print ( ('tuc: %d excess_used: %d \n') % (tuc, excess_used) )
+                # print ( ('tuc: %d excess_used: %d \n') % (tuc, excess_used) )
             if( tuc > 0 ):
                 wait_list_del[idx][ rotId ]+=1;
                 wait_time = i;
@@ -223,18 +199,21 @@ def logger( env ):
 
 
 # helper functions
-def getShareRatio(idx , now):
+def getCapacityShare(idx , now):
     global reqrate_tg
+    global capacity
     global soc_tg
     if int( now ) == 0:
-        return 1.0/no_of_tg
+        return (1.0/no_of_tg) * capacity
     nxt = (idx+1)%no_of_tg
     prv = (idx-1)%no_of_tg
+    tot_cap = (soc_tg[nxt] + soc_tg[idx] + soc_tg[prv])
     if(( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] ) == 0 ) :
-        return 1/3
+        return (1/3) * tot_cap
     if reqrate_tg[idx] == 0:
         reqrate_tg[idx] = 1
-    return float(reqrate_tg[idx]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
+    cap_ratio = float(reqrate_tg[idx]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
+    return cap_ratio * tot_cap
     # return float(reqcnt_tg[idx]) / sum( reqrate_tg )	# bug here
 
 
@@ -258,6 +237,31 @@ def unshared_copy(inList):
     return inList
 
 
+import pprint
+def newTrlist( sby10 ):
+    # tr = time, rate list
+    # sby10 is the duraion of the load profile in second / 10
+    min_duration = 1
+    min_rate = 1
+    global tr_list
+    tr_list = []
+    for i in range( no_of_tg ):
+        tempSecs = 0
+        templist = []
+        while tempSecs < sby10:
+            currentdur =  random.randint( min_duration, int(sim_duration*0.4/10) )
+            tempSecs += currentdur
+            rate = random.randint( min_rate, int(capacity*capacity_multiplier) )
+            templist.append( (currentdur*10, rate ) )
+        tr_list.append( templist )
+    # add bursts now
+    c1 = random.randint( 0 , len( tr_list )-1 )
+    c2 = random.randint( 0 , len( tr_list[c1] )-1 )
+    # now make a spike
+    tr_list[c1][c2] = ( tr_list[c1][c2][0] ,tr_list[c1][c2][1]+ int( capacity*2 ) )
+
+
+
 # =====================MAIN================================
 
 if not read_rate:
@@ -278,6 +282,21 @@ else:
     with open( 'loadprofile.pickle' , 'rb') as lpfp:
         tr_list = pickle.load( lpfp )
         print( tr_list )
+
+# to provide tr_list explicitly
+if (len(sys.argv) > 3):
+    tr_list = [[(50, 100), (20, 800), (60, 200)],
+               [(60, 700), (40, 50), (30, 450)],
+               [(10, 560), (70, 100), (50, 650)],
+               [(20, 200), (60, 600), (50, 1050)]]
+
+
+    print( tr_list )
+    with open( 'loadprofile.txt' , 'w') as lpfp:
+        pprint.pprint( tr_list , stream=lpfp )
+    with open( 'loadprofile.pickle' , 'w') as lpfp:
+        pickle.dump( tr_list, lpfp )
+
 
 # setup and start the simulation
 
