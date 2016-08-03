@@ -28,10 +28,15 @@ reqrate             = 0
 reqcnt_tg           = [ 0 for i in range(no_of_tg) ] # instanataneous count
 reqrate_tg          = [ 0 for i in range(no_of_tg) ]
 reqrate_tg_del      = [ 0 for i in range(no_of_tg) ] # to save it properly
-wait_list     		= [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
-wait_list_del 		= [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
+reqrate_tg_local    = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
+reqrate_tg_temp     = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
+wait_list           = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
+wait_list_del       = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
+wait_list_local     = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg)]
 soc_tg              = [ 0 for i in range(no_of_tg) ]
 soc_tg_del          = [ 0 for i in range(no_of_tg) ]
+soc_tg_share        = [ [0, 0] for i in range(no_of_tg) ]
+branch_factor       = 2
 
 # time,rate list
 # this is a sample input , will be changed in runtime
@@ -40,7 +45,6 @@ tr_list = []
 server_fp	= 'server.txt'
 wait_fp		= open('waittime.txt', 'w')
 refired_fp	= []
-
 
 
 
@@ -182,7 +186,7 @@ def logger( env ):
     fp = open( server_fp , 'w' )
     prevt = env.now
     while True:
-        yield env.timeout( 0.01 )
+        yield env.timeout( 0.001 )
         if env.now - prevt > 1:
             prevt = env.now
             print ((  '%.3f req_rate_server %s\n' )% (env.now, reqcnt_server) )
@@ -200,21 +204,28 @@ def logger( env ):
 
 # helper functions
 def getCapacityShare(idx , now):
-    global reqrate_tg
-    global capacity
-    global soc_tg
-    if int( now ) == 0:
-        return (1.0/no_of_tg) * capacity
-    nxt = (idx+1)%no_of_tg
-    prv = (idx-1)%no_of_tg
-    tot_cap = (soc_tg[nxt] + soc_tg[idx] + soc_tg[prv])
-    if(( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] ) == 0 ) :
-        return (1/3) * tot_cap
-    if reqrate_tg[idx] == 0:
-        reqrate_tg[idx] = 1
-    cap_ratio = float(reqrate_tg[idx]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
-    return cap_ratio * tot_cap
-    # return float(reqcnt_tg[idx]) / sum( reqrate_tg )	# bug here
+    if(reqrate_)
+
+    # global reqrate_tg
+    # global capacity
+    # global soc_tg
+    # if int( now ) == 0:
+    #     soc_tg_share[idx]=[(1.0/no_of_tg) * capacity, (1.0/no_of_tg) * capacity];
+    #     return (1.0/no_of_tg) * capacity
+    # nxt = (idx+1)%no_of_tg
+    # prv = (idx-1)%no_of_tg
+    # tot_cap = (soc_tg[nxt] + soc_tg[idx] + soc_tg[prv])
+    # if(( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] ) == 0 ) :
+    #     soc_tg_share[idx]=[(1/3) * tot_cap, (1/3) * tot_cap];
+    #     return (1/3) * tot_cap
+    # if reqrate_tg[idx] == 0:
+    #     reqrate_tg[idx] = 1
+    # cap_ratio_prv = float(reqrate_tg[prv]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
+    # cap_ratio_nxt = float(reqrate_tg[nxt]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )    
+    # cap_ratio_idx = float(reqrate_tg[idx]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
+    # soc_tg_share[idx]=[cap_ratio_prv * tot_cap, cap_ratio_nxt * tot_cap];
+    # return ((cap_ratio_idx * tot_cap)+soc_tg_share[prv][1]+soc_tg_share[nxt][0])/3
+    # # return float(reqcnt_tg[idx]) / sum( reqrate_tg )	# bug here
 
 
 def nwDelySim( env ):
