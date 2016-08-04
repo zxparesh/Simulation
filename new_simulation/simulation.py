@@ -15,7 +15,7 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 120
+sim_duration        = 60
 capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
@@ -236,8 +236,13 @@ def getCapacityShare(idx , now):
     if int( now ) == 0:
         soc_tg[idx] = (1.0/no_of_tg) * capacity;
         return soc_tg[idx]
+    if sum( reqrate_tg_local[idx] ) == 0:
+        soc_tg[idx] = (1.0/no_of_tg) * capacity;
+        return soc_tg[idx]
+    if reqrate_tg_local[idx][idx] == 0:
+        reqrate_tg[idx][idx] = 1
     for i in range(no_of_tg):
-        if (reqrate_tg_temp[idx][i]==0):
+        if (i!=idx and reqrate_tg_temp[idx][i]==0):
             return soc_tg[idx]
     for i in range(no_of_tg):
         reqrate_tg_local[idx][i] = reqrate_tg_temp[idx][i]
@@ -300,7 +305,7 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(10, 1), (30, 600), (200, 1)],
+    tr_list = [[(10, 1), (30, 20), (200, 1)],
                [(200,1)],
                [(200,1)],
                [(200,1)],
