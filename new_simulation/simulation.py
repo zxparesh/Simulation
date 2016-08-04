@@ -15,7 +15,7 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 10
+sim_duration        = 15
 capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
@@ -33,7 +33,7 @@ reqrate_tg_temp     = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
 wait_list           = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_del       = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_local     = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg)]
-branch_factor       = 2
+branch_factor       = 3
 
 # time,rate list
 # this is a sample input , will be changed in runtime
@@ -184,8 +184,8 @@ def logger( env ):
         yield env.timeout( 0.001 )
         if env.now - prevt > 1:
             prevt = env.now
-            print ((  '%.3f req_rate_server %s\n' )% (env.now, reqcnt_server) )
-            fp.write((  '%.3f req_rate_server %s\n' )% (env.now, reqcnt_server) )
+            print ((  '%.3f reqrate_server %s\n' )% (env.now, reqcnt_server) )
+            fp.write((  '%.3f reqrate_server %s\n' )% (env.now, reqcnt_server) )
             reqrate = reqcnt_server
             reqcnt_server = 0
             for i in range(no_of_tg) :
@@ -216,20 +216,22 @@ def read_data( env, idx ):
     prevt = env.now
     while True:
         yield env.timeout( 0.001 )
-        if env.now - prevt > 0.5:
-            print "time: ", env.now, " idx: ", idx
+        if env.now - prevt > 0.3:
+            print (("time: %.3f idx: %d ->")% (env.now, idx)),
             for i in range(no_of_tg):
-                print (reqrate_tg_local[idx][i]), ", "
-            print "\n"
+                print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
             prevt = env.now
-            pcount = 0
-            while (pcount != branch_factor):
-                peer = random.randint( 0, no_of_tg-1 )
-                # print ( ( 'time: %.3f idx %d peer\n' )% (env.now, idx, peer) )
-                if (peer!=idx):
-                    pcount+=1
-                    reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
-                    # waittime array TODO
+            print "\npeers ->",
+            tg_list=[i for i in range(0, no_of_tg) if i!=idx]
+            peer_list=random.sample(tg_list, branch_factor)
+            for peer in peer_list:
+                print peer,
+                reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
+                # waittime array TODO
+            print (("\ntime: %.3f idx: %d ->")% (env.now, idx)),
+            for i in range(no_of_tg):
+                print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
+            print "\n"
 
 
 # helper functions
@@ -238,20 +240,24 @@ def getCapacityShare(idx , now):
     global capacity
     global soc_tg
     if int( now ) == 0:
+        print "case 0",
         soc_tg[idx] = (1.0/no_of_tg) * capacity;
         return soc_tg[idx]
-    if sum( reqrate_tg_local[idx] ) == 0:
-        soc_tg[idx] = (1.0/no_of_tg) * capacity;
-        return soc_tg[idx]
+    for i in range(no_of_tg):
+        if (i!=idx and reqrate_tg_temp[idx][i]==0):
+            print "case 1",
+            return soc_tg[idx]
+    # if sum( reqrate_tg_local[idx] ) == 0:
+    #     print "case 2",
+    #     soc_tg[idx] = (1.0/no_of_tg) * capacity;
+    #     return soc_tg[idx]
     if reqrate_tg_local[idx][idx] == 0:
         reqrate_tg_local[idx][idx] = 1
     for i in range(no_of_tg):
-        if (i!=idx and reqrate_tg_temp[idx][i]==0):
-            return soc_tg[idx]
-    for i in range(no_of_tg):
         reqrate_tg_local[idx][i] = reqrate_tg_temp[idx][i]
         reqrate_tg_temp[idx][i] = 0
-    soc_tg[idx] = (reqrate_tg_local[idx][idx] / sum(reqrate_tg_local[idx])) * capacity
+    soc_tg[idx] = (float(reqrate_tg_local[idx][idx]) / sum(reqrate_tg_local[idx])) * capacity
+    print "case 3",
     return soc_tg[idx]
 
 
@@ -309,11 +315,11 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(2, 1), (4, 10), (200, 1)],
-               [(200,1)],
-               [(200,1)],
-               [(200,1)],
-               [(200,1)]]
+    tr_list = [[(2, 2), (4, 10), (200, 2)],
+               [(200,2)],
+               [(200,2)],
+               [(200,2)],
+               [(200,2)]]
 
 
     print( tr_list )
