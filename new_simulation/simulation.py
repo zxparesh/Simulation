@@ -15,14 +15,14 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 60
+sim_duration        = 10
 capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
 capacity_multiplier = 0.25	# to keep req_rate below capacity
 ms                  = 1.0/1000	# millisecond converter
 c2serverDelay       = 0	# in ms e.g. 10ms as 10*ms   
-basedelay			= 100 # network delay w/o cables
+basedelay			= 10 # network delay w/o cables
 reqcnt_server       = 0
 reqrate             = 0
 soc_tg              = [ 0 for i in range(no_of_tg) ]
@@ -93,7 +93,6 @@ def TokenGen(env, idx, cable1, cable2):
     # and use wait_list ( right of = )
 
     fired_fp = open("fired"+str(idx)+'.txt', 'w')
-    global reqrate_tg
     global reqrate_tg_del
     global reqcnt_tg
     while True:
@@ -200,8 +199,8 @@ def nwDelySim( env ):
     # network delay simulator -> simulate nw dely without cables
     global wait_list
     global wait_list_del
-    global reqrate_tg
     global reqrate_tg_del
+    global reqrate_tg_temp
     global basedelay
     global ms
     while True:
@@ -212,16 +211,21 @@ def nwDelySim( env ):
             reqrate_tg_temp[i][i] = reqrate_tg_del[i]
 
 
-def read_data( env, idx ): 
+def read_data( env, idx ):
     global reqrate_tg_temp
     prevt = env.now
     while True:
         yield env.timeout( 0.001 )
         if env.now - prevt > 0.5:
+            print "time: ", env.now, " idx: ", idx
+            for i in range(no_of_tg):
+                print (reqrate_tg_local[idx][i]), ", "
+            print "\n"
             prevt = env.now
             pcount = 0
             while (pcount != branch_factor):
                 peer = random.randint( 0, no_of_tg-1 )
+                # print ( ( 'time: %.3f idx %d peer\n' )% (env.now, idx, peer) )
                 if (peer!=idx):
                     pcount+=1
                     reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
@@ -240,7 +244,7 @@ def getCapacityShare(idx , now):
         soc_tg[idx] = (1.0/no_of_tg) * capacity;
         return soc_tg[idx]
     if reqrate_tg_local[idx][idx] == 0:
-        reqrate_tg[idx][idx] = 1
+        reqrate_tg_local[idx][idx] = 1
     for i in range(no_of_tg):
         if (i!=idx and reqrate_tg_temp[idx][i]==0):
             return soc_tg[idx]
@@ -305,7 +309,7 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(10, 1), (30, 20), (200, 1)],
+    tr_list = [[(2, 1), (4, 10), (200, 1)],
                [(200,1)],
                [(200,1)],
                [(200,1)],
