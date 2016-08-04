@@ -15,7 +15,7 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 15
+sim_duration        = 120
 capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
@@ -315,13 +315,11 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(2, 2), (4, 10), (200, 2)],
-               [(200,2)],
-               [(200,2)],
-               [(200,2)],
-               [(200,2)]]
-
-
+    tr_list = [[(10, 1), (40, 600), (200, 1)],
+               [(200,1)],
+               [(200,1)],
+               [(200,1)],
+               [(200,1)]]
     print( tr_list )
     with open( 'loadprofile.txt' , 'w') as lpfp:
         pprint.pprint( tr_list , stream=lpfp )
