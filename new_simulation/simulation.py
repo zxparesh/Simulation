@@ -25,17 +25,14 @@ c2serverDelay       = 0	# in ms e.g. 10ms as 10*ms
 basedelay			= 100 # network delay w/o cables
 reqcnt_server       = 0
 reqrate             = 0
+soc_tg              = [ 0 for i in range(no_of_tg) ]
 reqcnt_tg           = [ 0 for i in range(no_of_tg) ] # instanataneous count
-reqrate_tg          = [ 0 for i in range(no_of_tg) ]
 reqrate_tg_del      = [ 0 for i in range(no_of_tg) ] # to save it properly
 reqrate_tg_local    = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
 reqrate_tg_temp     = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
 wait_list           = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_del       = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_local     = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg)]
-soc_tg              = [ 0 for i in range(no_of_tg) ]
-soc_tg_del          = [ 0 for i in range(no_of_tg) ]
-soc_tg_share        = [ [0, 0] for i in range(no_of_tg) ]
 branch_factor       = 2
 
 # time,rate list
@@ -111,7 +108,6 @@ def TokenGen(env, idx, cable1, cable2):
         # find the share of capcity 
         # use share of capcity to find the waittime
         soc = getCapacityShare( idx , env.now )
-        soc_tg_del[idx] = soc;
         print ( ('soc: '+txt_tg+'%d %.3f %.2f \n') % (idx, env.now, soc ) )
         fired_fp.write( ('soc  %.3f %.2f \n') % ( env.now, soc ) )
         for i in range(1000):
@@ -194,38 +190,10 @@ def logger( env ):
             reqrate = reqcnt_server
             reqcnt_server = 0
             for i in range(no_of_tg) :
-                print ((  '%.3f req_rate_tg%d %s \n' )% (env.now,i,reqcnt_tg[i] ) )
-                fp.write((  '%.3f req_rate_tg%d %s\n' )% (env.now,i,reqcnt_tg[i] ) )
+                print ((  '%.3f reqrate_tg%d %s \n' )% (env.now,i,reqcnt_tg[i] ) )
+                fp.write((  '%.3f reqrate_tg%d %s\n' )% (env.now,i,reqcnt_tg[i] ) )
                 reqrate_tg_del[i] = reqcnt_tg[i]
                 reqcnt_tg[i] = 0;
-                soc_tg[i]=soc_tg_del[i];
-                soc_tg_del[i]=0;
-
-
-# helper functions
-def getCapacityShare(idx , now):
-    if(reqrate_)
-
-    # global reqrate_tg
-    # global capacity
-    # global soc_tg
-    # if int( now ) == 0:
-    #     soc_tg_share[idx]=[(1.0/no_of_tg) * capacity, (1.0/no_of_tg) * capacity];
-    #     return (1.0/no_of_tg) * capacity
-    # nxt = (idx+1)%no_of_tg
-    # prv = (idx-1)%no_of_tg
-    # tot_cap = (soc_tg[nxt] + soc_tg[idx] + soc_tg[prv])
-    # if(( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] ) == 0 ) :
-    #     soc_tg_share[idx]=[(1/3) * tot_cap, (1/3) * tot_cap];
-    #     return (1/3) * tot_cap
-    # if reqrate_tg[idx] == 0:
-    #     reqrate_tg[idx] = 1
-    # cap_ratio_prv = float(reqrate_tg[prv]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
-    # cap_ratio_nxt = float(reqrate_tg[nxt]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )    
-    # cap_ratio_idx = float(reqrate_tg[idx]) / ( reqrate_tg[nxt] + reqrate_tg[idx] + reqrate_tg[prv] )
-    # soc_tg_share[idx]=[cap_ratio_prv * tot_cap, cap_ratio_nxt * tot_cap];
-    # return ((cap_ratio_idx * tot_cap)+soc_tg_share[prv][1]+soc_tg_share[nxt][0])/3
-    # # return float(reqcnt_tg[idx]) / sum( reqrate_tg )	# bug here
 
 
 def nwDelySim( env ):
@@ -239,7 +207,43 @@ def nwDelySim( env ):
     while True:
         yield env.timeout(basedelay*ms) #*no_of_tg/10)
         wait_list = unshared_copy( wait_list_del )
-        reqrate_tg = unshared_copy( reqrate_tg_del )
+        # reqrate_tg = unshared_copy( reqrate_tg_del )
+        for i in range(no_of_tg):
+            reqrate_tg_temp[i][i] = reqrate_tg_del[i]
+
+
+def read_data( env, idx ): 
+    global reqrate_tg_temp
+    prevt = env.now
+    while True:
+        yield env.timeout( 0.001 )
+        if env.now - prevt > 0.5:
+            prevt = env.now
+            pcount = 0
+            while (pcount != branch_factor):
+                peer = random.randint( 0, no_of_tg-1 )
+                if (peer!=idx):
+                    pcount+=1
+                    reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
+                    # waittime array TODO
+
+
+# helper functions
+def getCapacityShare(idx , now):
+    global reqrate_tg_local
+    global capacity
+    global soc_tg
+    if int( now ) == 0:
+        soc_tg[idx] = (1.0/no_of_tg) * capacity;
+        return soc_tg[idx]
+    for i in range(no_of_tg):
+        if (reqrate_tg_temp[idx][i]==0):
+            return soc_tg[idx]
+    for i in range(no_of_tg):
+        reqrate_tg_local[idx][i] = reqrate_tg_temp[idx][i]
+        reqrate_tg_temp[idx][i] = 0
+    soc_tg[idx] = (reqrate_tg_local[idx][idx] / sum(reqrate_tg_local[idx])) * capacity
+    return soc_tg[idx]
 
 
 def unshared_copy(inList):
@@ -296,10 +300,11 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(50, 100), (20, 800), (60, 200)],
-               [(60, 700), (40, 50), (30, 450)],
-               [(10, 560), (70, 100), (50, 650)],
-               [(20, 200), (60, 600), (50, 1050)]]
+    tr_list = [[(10, 1), (30, 600), (200, 1)],
+               [(200,1)],
+               [(200,1)],
+               [(200,1)],
+               [(200,1)]]
 
 
     print( tr_list )
@@ -325,6 +330,7 @@ for i in range( no_of_tg):
     env.process(client(env, i, cable1[i], cable2[i], cable3, cable4))
     env.process(client_shadow(env,i, cable1[i], cable2[i], cable3, cable4))
     env.process(TokenGen(env, i, cable1[i], cable2[i]))
+    env.process(read_data(env, i))
 
 refired_fp= [open("refired"+str(idx)+'.txt', 'w') for idx in range(no_of_tg) ] 
 
