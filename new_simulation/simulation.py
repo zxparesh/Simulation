@@ -15,7 +15,7 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 120
+sim_duration        = 20
 capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
@@ -33,12 +33,14 @@ reqrate_tg_temp     = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
 wait_list           = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_del       = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_local     = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg)]
-branch_factor       = 3
+gossip_interval     = 0.3
+branch_factor       = 10
 
 # time,rate list
 # this is a sample input , will be changed in runtime
 tr_list = []
 
+config_fp   = open('config.txt', 'w')
 server_fp	= 'server.txt'
 wait_fp		= open('waittime.txt', 'w')
 refired_fp	= []
@@ -216,7 +218,7 @@ def read_data( env, idx ):
     prevt = env.now
     while True:
         yield env.timeout( 0.001 )
-        if env.now - prevt > 0.3:
+        if env.now - prevt > gossip_interval:
             print (("time: %.3f idx: %d ->")% (env.now, idx)),
             for i in range(no_of_tg):
                 print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
@@ -267,6 +269,19 @@ def unshared_copy(inList):
     return inList
 
 
+# write setup configuration to file
+def write_config():
+    config_fp.write(('sim_duration \t\t = %d \n')% sim_duration)
+    config_fp.write(('capacity \t\t = %d \n')% capacity)
+    config_fp.write(('no_of_tg \t\t = %d \n')% no_of_tg)
+    config_fp.write(('capacity_multiplier \t = %.3f \n')% capacity_multiplier)
+    config_fp.write(('c2serverDelay \t\t = %d \n')% c2serverDelay)
+    config_fp.write(('basedelay \t\t = %d \n')% basedelay)
+    config_fp.write(('gossip_interval \t = %.3f \n')% gossip_interval)
+    config_fp.write(('branch_factor \t\t = %d \n')% branch_factor)
+
+
+# function to generate new time rate list
 import pprint
 def newTrlist( sby10 ):
     # tr = time, rate list
@@ -311,20 +326,21 @@ else:
     # unpickle
     with open( 'loadprofile.pickle' , 'rb') as lpfp:
         tr_list = pickle.load( lpfp )
-        print( tr_list )
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(10, 1), (40, 600), (200, 1)],
-               [(200,1)],
-               [(200,1)],
-               [(200,1)],
-               [(200,1)]]
-    print( tr_list )
+    tr_list = [[(10, 1), (40, 10), (200, 1)],
+               [(200, 1)],
+               [(200, 1)],
+               [(200, 1)],
+               [(200, 1)]]
     with open( 'loadprofile.txt' , 'w') as lpfp:
         pprint.pprint( tr_list , stream=lpfp )
     with open( 'loadprofile.pickle' , 'w') as lpfp:
         pickle.dump( tr_list, lpfp )
+
+print( tr_list )
+write_config()
 
 
 # setup and start the simulation
