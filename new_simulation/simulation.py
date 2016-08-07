@@ -15,7 +15,7 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 20
+sim_duration        = 120
 capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
@@ -28,13 +28,13 @@ reqrate             = 0
 soc_tg              = [ 0 for i in range(no_of_tg) ]
 reqcnt_tg           = [ 0 for i in range(no_of_tg) ] # instanataneous count
 reqrate_tg_del      = [ 0 for i in range(no_of_tg) ] # to save it properly
-reqrate_tg_local    = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
-reqrate_tg_temp     = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg)]
+reqrate_tg_local    = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg)]
+reqrate_tg_temp     = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg)]
 wait_list           = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_del       = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
 wait_list_local     = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg)]
 gossip_interval     = 0.3
-branch_factor       = 10
+branch_factor       = 2
 
 # time,rate list
 # this is a sample input , will be changed in runtime
@@ -203,18 +203,17 @@ def nwDelySim( env ):
     global wait_list_del
     global reqrate_tg_del
     global reqrate_tg_temp
-    global basedelay
-    global ms
     while True:
         yield env.timeout(basedelay*ms) #*no_of_tg/10)
         wait_list = unshared_copy( wait_list_del )
         # reqrate_tg = unshared_copy( reqrate_tg_del )
         for i in range(no_of_tg):
-            reqrate_tg_temp[i][i] = reqrate_tg_del[i]
+            reqrate_tg_temp[i][i] = (round(env.now,4), reqrate_tg_del[i])
 
 
 def read_data( env, idx ):
     global reqrate_tg_temp
+    global reqrate_tg_local
     prevt = env.now
     while True:
         yield env.timeout( 0.001 )
@@ -228,7 +227,10 @@ def read_data( env, idx ):
             peer_list=random.sample(tg_list, branch_factor)
             for peer in peer_list:
                 print peer,
-                reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
+                # reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
+                for i in range(no_of_tg):
+                    if(reqrate_tg_temp[peer][i][0]>reqrate_tg_temp[idx][i][0]):
+                        reqrate_tg_temp[idx][i]=reqrate_tg_temp[peer][i]
                 # waittime array TODO
             print (("\ntime: %.3f idx: %d ->")% (env.now, idx)),
             for i in range(no_of_tg):
@@ -238,28 +240,30 @@ def read_data( env, idx ):
 
 # helper functions
 def getCapacityShare(idx , now):
-    global reqrate_tg_local
-    global capacity
     global soc_tg
+    global reqrate_tg_local
+    global reqrate_tg_temp
     if int( now ) == 0:
         print "case 0",
         soc_tg[idx] = (1.0/no_of_tg) * capacity;
         return soc_tg[idx]
     for i in range(no_of_tg):
-        if (i!=idx and reqrate_tg_temp[idx][i]==0):
+        if (reqrate_tg_temp[idx][i][0]==0):
             print "case 1",
             return soc_tg[idx]
-    # if sum( reqrate_tg_local[idx] ) == 0:
-    #     print "case 2",
-    #     soc_tg[idx] = (1.0/no_of_tg) * capacity;
-    #     return soc_tg[idx]
-    if reqrate_tg_local[idx][idx] == 0:
-        reqrate_tg_local[idx][idx] = 1
+    if reqrate_tg_local[idx][idx][1] == 0:
+        reqrate_tg_local[idx][idx] = (reqrate_tg_local[idx][idx][0], 1)
+    tot_reqrate = 0
     for i in range(no_of_tg):
         reqrate_tg_local[idx][i] = reqrate_tg_temp[idx][i]
-        reqrate_tg_temp[idx][i] = 0
-    soc_tg[idx] = (float(reqrate_tg_local[idx][idx]) / sum(reqrate_tg_local[idx])) * capacity
-    print "case 3",
+        reqrate_tg_temp[idx][i] = (0, 0)
+        tot_reqrate += reqrate_tg_local[idx][i][1]
+    if ( tot_reqrate == 0 ):
+        print "case 2",
+        soc_tg[idx] = (1.0/no_of_tg) * capacity;
+        return soc_tg[idx]
+    soc_tg[idx] = (float(reqrate_tg_local[idx][idx][1]) / tot_reqrate) * capacity
+    print "case 3", reqrate_tg_local[idx][idx], " -> ", tot_reqrate,
     return soc_tg[idx]
 
 
