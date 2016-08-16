@@ -15,8 +15,8 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 120
-capacity            = 700
+sim_duration        = 20
+capacity            = 10
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
 capacity_multiplier = 0.25	# to keep req_rate below capacity
@@ -28,11 +28,10 @@ reqrate             = 0
 soc_tg              = [ 0 for i in range(no_of_tg) ]
 reqcnt_tg           = [ 0 for i in range(no_of_tg) ] # instanataneous count
 reqrate_tg_del      = [ 0 for i in range(no_of_tg) ] # to save it properly
-reqrate_tg_local    = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg)]
-reqrate_tg_temp     = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg)]
-wait_list           = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
-wait_list_del       = [ [ 0 for i in range(1000)] for i in range(no_of_tg) ]
-wait_list_local     = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg)]
+reqrate_tg_local    = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg) ]
+reqrate_tg_temp     = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg) ]
+wait_timestamp      = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg) ]
+wait_list           = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg) ]
 gossip_interval     = 0.3
 branch_factor       = 2
 
@@ -100,7 +99,7 @@ def TokenGen(env, idx, cable1, cable2):
     while True:
         # Get event for message pipe
         msg = yield cable1.get()
-        wait_list_del[idx][ int(env.now-1) ] = 0;
+        wait_list[idx][idx][ int(env.now-1) ] = 0;
         print ( ('tg-rcv: pkt-%d client %.3f ==> '+txt_tg+'%d %.3f \n') % (msg[0], msg[1], idx, env.now) )
         fired_fp.write( ('pkt-%d client %.3f ==> '+txt_tg+'%d %.3f \n') % (msg[0], msg[1], idx, env.now) )
         reqcnt_tg[idx] += 1 # we need the req count
@@ -113,11 +112,11 @@ def TokenGen(env, idx, cable1, cable2):
         fired_fp.write( ('soc  %.3f %.2f \n') % ( env.now, soc ) )
         for i in range(1000):
             rotId = (int(env.now) + i)%1000
-            usedCap = wait_list[idx][ rotId ] 
+            usedCap = wait_list[idx][idx][ rotId ] 
             puc = 0;
-            for j in range( len(wait_list) ):
+            for j in range( len(wait_list[idx]) ):
                 if j != idx:
-                    puc += wait_list[j][ rotId ] 
+                    puc += wait_list[idx][j][ rotId ] 
             tuc = soc - usedCap
             # print ( ('rotId: %d tuc: %d puc: %d \n') % (rotId, tuc, puc) )
             if puc > 0 :
@@ -125,11 +124,12 @@ def TokenGen(env, idx, cable1, cable2):
                 tuc += excess_used if excess_used < 0 else 0
                 # print ( ('tuc: %d excess_used: %d \n') % (tuc, excess_used) )
             if( tuc > 0 ):
-                wait_list_del[idx][ rotId ]+=1;
+                wait_list[idx][idx][ rotId ]+=1;
                 wait_time = i;
                 break
             else:
                 continue
+        wait_timestamp[idx][idx] = env.now
         print ( (txt_tg+'%d pkt-%d time %.3f waittime %d \n') % (idx, msg[0], env.now, wait_time) )
         wait_fp.write( ('pkt-%d waittime %.3f %d \n') % (msg[0], env.now, wait_time) )
         cable2.put( [ msg[0] , env.now , wait_time ] )
@@ -199,13 +199,11 @@ def logger( env ):
 
 def nwDelySim( env ):
     # network delay simulator -> simulate nw dely without cables
-    global wait_list
-    global wait_list_del
     global reqrate_tg_del
     global reqrate_tg_temp
     while True:
         yield env.timeout(basedelay*ms) #*no_of_tg/10)
-        wait_list = unshared_copy( wait_list_del )
+        # wait_list = unshared_copy( wait_list_del )
         # reqrate_tg = unshared_copy( reqrate_tg_del )
         for i in range(no_of_tg):
             reqrate_tg_temp[i][i] = (round(env.now,4), reqrate_tg_del[i])
@@ -218,24 +216,28 @@ def read_data( env, idx ):
     while True:
         yield env.timeout( 0.001 )
         if env.now - prevt > gossip_interval:
-            print (("time: %.3f idx: %d ->")% (env.now, idx)),
-            for i in range(no_of_tg):
-                print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
+            # print (("time: %.3f idx: %d ->")% (env.now, idx)),
+            # for i in range(no_of_tg):
+            #     print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
             prevt = env.now
-            print "\npeers ->",
+            # print "\npeers ->",
             tg_list=[i for i in range(0, no_of_tg) if i!=idx]
             peer_list=random.sample(tg_list, branch_factor)
             for peer in peer_list:
-                print peer,
-                # reqrate_tg_temp[idx][peer]=reqrate_tg_temp[peer][peer]
+                # print peer,
+                # get request_rate of peer
                 for i in range(no_of_tg):
                     if(reqrate_tg_temp[peer][i][0]>reqrate_tg_temp[idx][i][0]):
                         reqrate_tg_temp[idx][i]=reqrate_tg_temp[peer][i]
-                # waittime array TODO
-            print (("\ntime: %.3f idx: %d ->")% (env.now, idx)),
-            for i in range(no_of_tg):
-                print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
-            print "\n"
+                # get wait_list of peer
+                if (wait_timestamp[idx][peer]>wait_timestamp[peer][peer]):
+                    wait_list[idx][peer] = wait_list[peer][peer]
+                    wait_timestamp[idx][peer] = wait_timestamp[peer][peer]
+
+            # print (("\ntime: %.3f idx: %d ->")% (env.now, idx)),
+            # for i in range(no_of_tg):
+            #     print reqrate_tg_local[idx][i], reqrate_tg_temp[idx][i], ",",
+            # print "\n"
 
 
 # helper functions
@@ -333,7 +335,7 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(10, 1), (40, 10), (200, 1)],
+    tr_list = [[(10, 1), (40, 20), (200, 1)],
                [(200, 1)],
                [(200, 1)],
                [(200, 1)],
