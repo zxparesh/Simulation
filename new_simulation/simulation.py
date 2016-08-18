@@ -33,7 +33,7 @@ reqrate_tg_temp     = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of
 wait_timestamp      = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg) ]
 wait_list           = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg) ]
 gossip_interval     = 0.3
-branch_factor       = 2
+branch_factor       = 4
 
 # time,rate list
 # this is a sample input , will be changed in runtime
@@ -124,6 +124,8 @@ def TokenGen(env, idx, cable1, cable2):
                 tuc += excess_used if excess_used < 0 else 0
                 # print ( ('tuc: %d excess_used: %d \n') % (tuc, excess_used) )
             if( tuc > 0 ):
+                print ( ('tuc: '+txt_tg+'%d %.3f %.2f \n') % ( idx, env.now, tuc ) )
+                fired_fp.write( ('tuc  %.3f %.2f \n') % ( env.now, tuc ) )
                 wait_list[idx][idx][ rotId ]+=1;
                 wait_time = i;
                 break
@@ -230,8 +232,8 @@ def read_data( env, idx ):
                     if(reqrate_tg_temp[peer][i][0]>reqrate_tg_temp[idx][i][0]):
                         reqrate_tg_temp[idx][i]=reqrate_tg_temp[peer][i]
                 # get wait_list of peer
-                if (wait_timestamp[idx][peer]>wait_timestamp[peer][peer]):
-                    wait_list[idx][peer] = wait_list[peer][peer]
+                if (wait_timestamp[peer][peer]>wait_timestamp[idx][peer]):
+                    wait_list[idx][peer] = unshared_copy( wait_list[peer][peer] )
                     wait_timestamp[idx][peer] = wait_timestamp[peer][peer]
 
             # print (("\ntime: %.3f idx: %d ->")% (env.now, idx)),

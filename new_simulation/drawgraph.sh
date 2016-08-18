@@ -17,7 +17,7 @@ for i in `seq 0 $NOTG` ; do
     "
 done
 
-
+# cumulative load (sum of all tokengens)
 
 cat fired*.txt | awk '/pkt/ {print int($3)}'| sort -n | uniq -c | awk '{print $1}' > cum.tmp
 
@@ -29,6 +29,8 @@ plot 'cum.tmp' with lp ;
 "
 
 
+# number of requests served by server
+
 cat server.txt | awk '/server/ {print int($1),$3}' > server.tmp
 
 gnuplot -e "
@@ -38,6 +40,8 @@ set output 'recieved.png';
 plot 'server.tmp' with lp;
 "
 
+
+# waittime assigned to each incoming request
 
 cat waittime.txt| awk '{print $3,$4 }' > waittime.tmp
 
@@ -49,6 +53,8 @@ plot 'waittime.tmp' ;
 "
 
 
+# expected number of requests at server
+
 cat waittime.tmp | awk '{print int($1)+$2}' | uniq -c | awk '{asd[$2]+=$1}END{for(a in asd){print a, asd[a]}}' | sort -n > expected_server.tmp
 
 gnuplot -e "
@@ -59,7 +65,7 @@ plot 'expected_server.tmp' w l;
 "
 
 
-# draw a cumulative inbound grapsh
+# draw a cumulative inbound graphs
 
 gnuplot -e "
 set terminal pngcairo;
@@ -68,3 +74,7 @@ set title 'all incoming';
 plot for [i=0:$NOTG] ''.i.'.tmp' with lp title 'tg'.i,
                 'cum.tmp' with lp t 'cumulative'
 "
+
+
+# cumulative total usable capacity of tokengens
+
