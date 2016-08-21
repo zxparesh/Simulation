@@ -3,6 +3,10 @@
 
 # draw for each token_gen
 
+
+
+# python soc_ground_truth.py loadprofile.pickle capacity duration
+
 NOTG=$((`ls fired*.txt | wc -l` - 1))
 
 for i in `seq 0 $NOTG` ; do 
@@ -13,7 +17,8 @@ for i in `seq 0 $NOTG` ; do
     set output 'sent$i.png';
     set title 'tokengen-$i  profile and soc learned';
     plot '$i.tmp' with lp t 'incoming load',
-         '${i}soc.tmp' with lp t 'share of capacity';
+         '${i}soc.tmp' with lp t 'share of capacity',
+         '${i}soc_gt.tmp' with lp t 'ground truth share of capacity';
     "
 done
 

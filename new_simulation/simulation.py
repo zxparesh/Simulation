@@ -15,8 +15,8 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
-sim_duration        = 20
-capacity            = 10
+sim_duration        = 120
+capacity            = 700
 no_of_tg            = int(sys.argv[1])
 read_rate           = True if len(sys.argv) > 2 else False
 capacity_multiplier = 0.25	# to keep req_rate below capacity
@@ -124,8 +124,8 @@ def TokenGen(env, idx, cable1, cable2):
                 tuc += excess_used if excess_used < 0 else 0
                 # print ( ('tuc: %d excess_used: %d \n') % (tuc, excess_used) )
             if( tuc > 0 ):
-                print ( ('tuc: '+txt_tg+'%d %.3f %.2f \n') % ( idx, env.now, tuc ) )
-                fired_fp.write( ('tuc  %.3f %.2f \n') % ( env.now, tuc ) )
+                # print ( ('tuc: '+txt_tg+'%d %.3f %.2f \n') % ( idx, env.now, tuc ) )
+                # fired_fp.write( ('tuc  %.3f %.2f \n') % ( env.now, tuc ) )
                 wait_list[idx][idx][ rotId ]+=1;
                 wait_time = i;
                 break
@@ -249,7 +249,7 @@ def getCapacityShare(idx , now):
     global reqrate_tg_temp
     if int( now ) == 0:
         print "case 0",
-        soc_tg[idx] = (1.0/no_of_tg) * capacity;
+        soc_tg[idx] = round( (1.0/no_of_tg) * capacity )
         return soc_tg[idx]
     for i in range(no_of_tg):
         if (reqrate_tg_temp[idx][i][0]==0):
@@ -264,9 +264,9 @@ def getCapacityShare(idx , now):
         tot_reqrate += reqrate_tg_local[idx][i][1]
     if ( tot_reqrate == 0 ):
         print "case 2",
-        soc_tg[idx] = (1.0/no_of_tg) * capacity;
+        soc_tg[idx] = round( (1.0/no_of_tg) * capacity )
         return soc_tg[idx]
-    soc_tg[idx] = (float(reqrate_tg_local[idx][idx][1]) / tot_reqrate) * capacity
+    soc_tg[idx] = round( (float(reqrate_tg_local[idx][idx][1]) / tot_reqrate) * capacity )
     print "case 3", reqrate_tg_local[idx][idx], " -> ", tot_reqrate,
     return soc_tg[idx]
 
@@ -279,14 +279,14 @@ def unshared_copy(inList):
 
 # write setup configuration to file
 def write_config():
-    config_fp.write(('sim_duration \t\t = %d \n')% sim_duration)
-    config_fp.write(('capacity \t\t = %d \n')% capacity)
-    config_fp.write(('no_of_tg \t\t = %d \n')% no_of_tg)
-    config_fp.write(('capacity_multiplier \t = %.3f \n')% capacity_multiplier)
-    config_fp.write(('c2serverDelay \t\t = %d \n')% c2serverDelay)
-    config_fp.write(('basedelay \t\t = %d \n')% basedelay)
-    config_fp.write(('gossip_interval \t = %.3f \n')% gossip_interval)
-    config_fp.write(('branch_factor \t\t = %d \n')% branch_factor)
+    config_fp.write(('sim_duration = %d \n')% sim_duration)
+    config_fp.write(('capacity = %d \n')% capacity)
+    config_fp.write(('no_of_tg = %d \n')% no_of_tg)
+    config_fp.write(('capacity_multiplier = %.3f \n')% capacity_multiplier)
+    config_fp.write(('c2serverDelay = %d \n')% c2serverDelay)
+    config_fp.write(('basedelay = %d \n')% basedelay)
+    config_fp.write(('gossip_interval = %.3f \n')% gossip_interval)
+    config_fp.write(('branch_factor = %d \n')% branch_factor)
 
 
 # function to generate new time rate list
@@ -337,7 +337,7 @@ else:
 
 # to provide tr_list explicitly
 if (len(sys.argv) > 3):
-    tr_list = [[(10, 1), (40, 20), (200, 1)],
+    tr_list = [[(5, 1), (10, 20), (200, 1)],
                [(200, 1)],
                [(200, 1)],
                [(200, 1)],
