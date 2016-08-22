@@ -1,13 +1,22 @@
 #!/bin/bash
 
 
-# draw for each token_gen
+# read parameters from config.txt
+
+DURATION=`awk '/sim_duration/ {print int($3)}' config.txt`
+CAPACITY=`awk '/capacity / {print int($3)}' config.txt`
+NOTG=$((`awk '/no_of_tg / {print int($3)}' config.txt`-1))
 
 
+###### draw for each token_gen ######
 
-# python soc_ground_truth.py loadprofile.pickle capacity duration
+# generate soc ground truth values
 
-NOTG=$((`ls fired*.txt | wc -l` - 1))
+python soc_ground_truth.py loadprofile.pickle $CAPACITY $DURATION
+
+# NOTG=$((`ls fired*.txt | wc -l` - 1))
+
+# imcoming load, soc exp, soc gt_value vs time
 
 for i in `seq 0 $NOTG` ; do 
     cat fired$i.txt | awk '/pkt/ {print int($3)}'| sort -n | uniq -c | awk '{print $1}' > $i.tmp
@@ -21,6 +30,7 @@ for i in `seq 0 $NOTG` ; do
          '${i}soc_gt.tmp' with lp t 'ground truth share of capacity';
     "
 done
+
 
 # cumulative load (sum of all tokengens)
 
@@ -81,5 +91,5 @@ plot for [i=0:$NOTG] ''.i.'.tmp' with lp title 'tg'.i,
 "
 
 
-# cumulative total usable capacity of tokengens
+# convergence time for each token_gen
 
