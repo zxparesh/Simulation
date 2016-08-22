@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
-# ./simulation.py <no of tg> <read or not tr_list> <provide tr_list here in file>
+# ./simulation.py <no of tg> <branch factor> <gossip interval>
+# only 3 arguments: generates new tr_list for given args (pickle file)
+# 4th arg: read pickle file and run the simulation
+# 5th arg: read tr_list from this file (inside main) and run simulation
 
 import simpy
 import pickle
@@ -15,14 +18,16 @@ txt_tg = Fore.RED  + ('tokgen') + Style.RESET_ALL
 txt_tc = Fore.BLUE + ('tokchk') + Style.RESET_ALL
 txt_ser = Fore.GREEN + ('server') + Style.RESET_ALL
 
+no_of_tg            = int(sys.argv[1])
+branch_factor       = int(sys.argv[2])
+gossip_interval     = float(sys.argv[3])
 sim_duration        = 120
 capacity            = 700
-no_of_tg            = int(sys.argv[1])
-read_rate           = True if len(sys.argv) > 2 else False
-capacity_multiplier = 0.25	# to keep req_rate below capacity
-ms                  = 1.0/1000	# millisecond converter
-c2serverDelay       = 0	# in ms e.g. 10ms as 10*ms   
-basedelay			= 10 # network delay w/o cables
+read_rate           = True if len(sys.argv) > 4 else False
+capacity_multiplier = 0.25  # to keep req_rate below capacity
+ms                  = 1.0/1000  # millisecond converter
+c2serverDelay       = 0 # in ms e.g. 10ms as 10*ms   
+basedelay           = 10 # network delay w/o cables
 reqcnt_server       = 0
 reqrate             = 0
 soc_tg              = [ 0 for i in range(no_of_tg) ]
@@ -32,8 +37,6 @@ reqrate_tg_local    = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of
 reqrate_tg_temp     = [ [ (0, 0) for i in range(no_of_tg) ] for i in range(no_of_tg) ]
 wait_timestamp      = [ [ 0 for i in range(no_of_tg) ] for i in range(no_of_tg) ]
 wait_list           = [ [ [ 0 for i in range(1000)] for i in range(no_of_tg) ] for i in range(no_of_tg) ]
-gossip_interval     = 0.3
-branch_factor       = 4
 
 # time,rate list
 # this is a sample input , will be changed in runtime
@@ -336,7 +339,7 @@ else:
         tr_list = pickle.load( lpfp )
 
 # to provide tr_list explicitly
-if (len(sys.argv) > 3):
+if (len(sys.argv) > 5):
     tr_list = [[(5, 1), (10, 20), (200, 1)],
                [(200, 1)],
                [(200, 1)],
