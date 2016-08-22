@@ -364,8 +364,6 @@ cable4 = Cable(env   , c2serverDelay) # from check  to client
 cable5 = Cable(env   , c2serverDelay) # from check  to server
 cable6 = Cable(env   , c2serverDelay) # from server to check
 
-# print( cable3.store.items )
-
 for i in range( no_of_tg):
     env.process(client(env, i, cable1[i], cable2[i], cable3, cable4))
     env.process(client_shadow(env,i, cable1[i], cable2[i], cable3, cable4))
