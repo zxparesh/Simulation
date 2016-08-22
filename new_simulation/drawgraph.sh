@@ -5,8 +5,9 @@
 
 DURATION=`awk '/sim_duration/ {print int($3)}' config.txt`
 CAPACITY=`awk '/capacity / {print int($3)}' config.txt`
-NOTG=$((`awk '/no_of_tg / {print int($3)}' config.txt`-1))
-
+NOTG=$((`awk '/no_of_tg/ {print int($3)}' config.txt`-1))
+BRN_FACT=`awk '/branch_factor/ {print $3}' config.txt`
+GOS_INT=`awk '/gossip_interval/ {print $3}' config.txt`
 
 ###### draw for each token_gen ######
 
@@ -91,5 +92,18 @@ plot for [i=0:$NOTG] ''.i.'.tmp' with lp title 'tg'.i,
 "
 
 
-# convergence time for each token_gen
+# avg convergence time of all token_gen
 
+con_time=0
+for i in `seq 0 $NOTG` ; do
+    c_time=`python convergence.py ${i}soc_gt.tmp ${i}soc.tmp`
+    con_time=`echo $con_time + $c_time | bc`
+done
+
+# avg=$(echo "$con_time/$NOTG" | bc -l)
+
+no_tg=$(($NOTG + 1))
+
+avg=$(echo "scale=4; $con_time/$no_tg" | bc -l)
+
+echo $no_tg $BRN_FACT $GOS_INT $avg > converg_time.tmp
